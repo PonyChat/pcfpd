@@ -93,14 +93,14 @@ static int create_listener(unsigned short port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 
+	c = 1;
+	if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &c, sizeof(c)) < 0)
+		perror("warning, setsockopt");
+
 	if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("bind");
 		return -1;
 	}
-
-	c = 1;
-	if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &c, sizeof(c)) < 0)
-		perror("warning, setsockopt");
 
 	if (listen(listener, 5) < 0) {
 		perror("listen");
