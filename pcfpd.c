@@ -162,8 +162,13 @@ static void log_client(struct sockaddr_in *sa)
 
 static void usage(const char *argv0)
 {
-	fprintf(stderr, "Usage: %s -f POLICY [-p PORT] [-d] [-l LOG]\n", argv0);
-	fprintf(stderr, "Default port is %d\n", DEFAULT_PORT);
+	fprintf(stderr, "\nUsage: %s [OPTIONS] -f POLICY\n", argv0);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Options:\n");
+	fprintf(stderr, " -f POLICY   Use POLICY as policy file (required)\n");
+	fprintf(stderr, " -p PORT     Listen on PORT (default %d)\n", DEFAULT_PORT);
+	fprintf(stderr, " -d          Daemonize (fork to background)\n");
+	fprintf(stderr, " -l FILE     Log requests to FILE\n");
 }
 
 int main(int argc, char *argv[])
@@ -174,7 +179,7 @@ int main(int argc, char *argv[])
 	unsigned short port = DEFAULT_PORT;
 	int do_fork = 0;
 
-	while ((c = getopt(argc, argv, "p:f:dl:")) != -1) switch (c) {
+	while ((c = getopt(argc, argv, "f:p:dl:")) != -1) switch (c) {
 	case 'p':
 		port = atoi(optarg);
 		if (port == 0) {
@@ -205,6 +210,7 @@ int main(int argc, char *argv[])
 
 	if (!policy_file) {
 		fprintf(stderr, "Missing required policy file argument -f\n");
+		usage(argv[0]);
 		return 1;
 	}
 
