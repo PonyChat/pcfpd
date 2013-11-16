@@ -259,6 +259,7 @@ int main(int argc, char *argv[])
 		if (log_file)
 			free(log_file);
 		log_file = strdup(optarg);
+		break;
 
 	case 'd':
 		do_fork = 1;
