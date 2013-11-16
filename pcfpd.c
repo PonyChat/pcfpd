@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #define DEFAULT_PORT 843
 #define MAX_POLICY_LEN 65536
@@ -53,10 +54,23 @@ static const char *log_prefix(void)
 	return pfx;
 }
 
+static void log_line(const char *fmt, ...)
+{
+	char buf[4096];
+	va_list va;
+
+	va_start(va, fmt);
+	vsnprintf(buf, 4096, fmt, va);
+	va_end(va);
+
+	fprintf(log_f, "%s%s\n", log_prefix(), buf);
+	fflush(log_f);
+}
+
 static void log_open(const char *filename)
 {
 	if (log_f != NULL) {
-		fprintf(log_f, "%stried to open log again\n", log_prefix());
+		log_line("tried to open log again");
 		return;
 	}
 
@@ -72,8 +86,7 @@ static void log_open(const char *filename)
 		}
 	}
 
-	fprintf(log_f, "%spcfpd started\n", log_prefix());
-	fflush(log_f);
+	log_line("pcfpd started");
 }
 
 static void log_client(struct sockaddr_in *sa)
@@ -85,14 +98,12 @@ static void log_client(struct sockaddr_in *sa)
 
 	inet_ntop(AF_INET, &sa->sin_addr, buf, 256);
 
-	fprintf(log_f, "%s%s\n", log_prefix(), buf);
-	fflush(log_f);
+	log_line("%s", buf);
 }
 
 static void log_errno(const char *msg, int e)
 {
-	fprintf(log_f, "%s%s: %s", log_prefix(), msg, strerror(e));
-	fflush(log_f);
+	log_line("%s: %s", msg, strerror(e));
 }
 
 static char policy_data[MAX_POLICY_LEN];
