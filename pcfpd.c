@@ -90,6 +90,11 @@ static void log_open(const char *filename)
 	log_line("pcfpd started");
 }
 
+static void log_close(void)
+{
+	fclose(log_f);
+}
+
 static void log_client(struct sockaddr_in *sa)
 {
 	char buf[256];
@@ -196,6 +201,7 @@ static void sigint_handler(int sig)
 
 static void sighup_handler(int sig)
 {
+	/* TODO: reload policy file? */
 	log_line("caught SIGHUP. ignoring...");
 }
 
@@ -320,4 +326,9 @@ int main(int argc, char *argv[])
 		send_policy(client);
 		close(client);
 	}
+
+	log_line("pcfpd stopping");
+	log_close();
+
+	close(listener);
 }
