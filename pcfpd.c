@@ -55,14 +55,21 @@ static const char *log_prefix(void)
 
 static void log_open(const char *filename)
 {
-	if (!filename)
+	if (log_f != NULL) {
+		fprintf(log_f, "%stried to open log again\n", log_prefix());
 		return;
+	}
 
-	log_f = fopen(filename, "a");
+	log_f = stdout;
 
-	if (!log_f) {
-		fprintf(stderr, "Could not open log file %s\n", filename);
-		return;
+	if (filename) {
+		log_f = fopen(filename, "a");
+
+		if (!log_f) {
+			fprintf(stderr, "Could not open log file %s; using stdout\n",
+			        filename);
+			log_f = stdout;
+		}
 	}
 
 	fprintf(log_f, "%spcfpd started\n", log_prefix());
@@ -175,7 +182,7 @@ static void usage(const char *argv0)
 	fprintf(stderr, " -f POLICY   Use POLICY as policy file (required)\n");
 	fprintf(stderr, " -p PORT     Listen on PORT (default %d)\n", DEFAULT_PORT);
 	fprintf(stderr, " -d          Daemonize (fork to background)\n");
-	fprintf(stderr, " -l FILE     Log requests to FILE\n");
+	fprintf(stderr, " -l FILE     Log requests to FILE (default stdout)\n");
 }
 
 int main(int argc, char *argv[])
