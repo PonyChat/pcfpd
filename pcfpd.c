@@ -65,6 +65,10 @@ static void log_line(const char *fmt, ...)
 	va_end(va);
 
 	fprintf(log_f, "%s%s\n", log_prefix(), buf);
+}
+
+static void log_flush(void)
+{
 	fflush(log_f);
 }
 
@@ -294,7 +298,10 @@ int main(int argc, char *argv[])
 	}
 
 	if (do_fork) {
-		pid_t pid = fork();
+		pid_t pid;
+
+		log_flush();
+		pid = fork();
 
 		if (pid < 0) {
 			perror("fork");
