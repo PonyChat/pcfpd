@@ -112,7 +112,7 @@ static int create_listener(unsigned short port)
 
 static void usage(const char *argv0)
 {
-	fprintf(stderr, "Usage: %s -f POLICY [-p PORT]\n", argv0);
+	fprintf(stderr, "Usage: %s -f POLICY [-p PORT] [-d]\n", argv0);
 	fprintf(stderr, "Default port is %d\n", DEFAULT_PORT);
 }
 
@@ -121,8 +121,9 @@ int main(int argc, char *argv[])
 	int c, listener;
 	char *policy_file = NULL;
 	unsigned short port = DEFAULT_PORT;
+	int do_fork = 0;
 
-	while ((c = getopt(argc, argv, "p:f:")) != -1) switch (c) {
+	while ((c = getopt(argc, argv, "p:f:d")) != -1) switch (c) {
 	case 'p':
 		port = atoi(optarg);
 		if (port == 0) {
@@ -135,6 +136,10 @@ int main(int argc, char *argv[])
 		if (policy_file)
 			free(policy_file);
 		policy_file = strdup(optarg);
+		break;
+
+	case 'd':
+		do_fork = 1;
 		break;
 
 	default:
@@ -155,6 +160,24 @@ int main(int argc, char *argv[])
 	if ((listener = create_listener(port)) < 0) {
 		fprintf(stderr, "Failed to create listener\n");
 		return 1;
+	}
+
+	if (do_fork) {
+		pid_t pid = fork();
+
+		if (pid < 0) {
+			perror("fork");
+			return 1;
+		}
+
+		if (pid != 0) {
+			fprintf(stderr, "Forked with PID %d\n", pid);
+			return 0;
+		}
+
+		close(0);
+		close(1);
+		close(2);
 	}
 
 	for (;;) {
