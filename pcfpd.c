@@ -33,6 +33,61 @@
 #define DEFAULT_PORT 843
 #define MAX_POLICY_LEN 65536
 
+/* TODO: fflush in exit handler */
+
+static FILE *log_f;
+
+static const char *log_prefix(void)
+{
+	static char pfx[512];
+	time_t now;
+	struct tm *tmp;
+	size_t sz;
+
+	now = time(NULL);
+	if (!(tmp = localtime(&now)))
+		sz = snprintf(pfx, 512, "[----/--/-- --:--:-- +----] ");
+	else
+		sz = strftime(pfx, 512, "[%Y/%m/%d %H:%M:%S %z] ", tmp);
+
+	return pfx;
+}
+
+static void log_open(const char *filename)
+{
+	if (!filename)
+		return;
+
+	log_f = fopen(filename, "a");
+
+	if (!log_f) {
+		fprintf(stderr, "Could not open log file %s\n", filename);
+		return;
+	}
+
+	fprintf(log_f, "%spcfpd started\n", log_prefix());
+	fflush(log_f);
+}
+
+static void log_client(struct sockaddr_in *sa)
+{
+	char buf[256];
+
+	if (!log_f)
+		return;
+
+	inet_ntop(AF_INET, &sa->sin_addr, buf, 256);
+
+	fprintf(log_f, "%s%s\n", log_prefix(), buf);
+	fflush(log_f);
+}
+
+static void log_errno(const char *msg, int e)
+{
+	fprintf(log_f, "%s%s: %s", log_prefix(), msg, strerror(e));
+	fflush(log_f);
+}
+
 static char policy_data[MAX_POLICY_LEN];
 static size_t policy_len;
 
@@ -110,61 +165,6 @@ static int create_listener(unsigned short port)
 	}
 
 	return listener;
-}
-
-/* TODO: fflush in exit handler */
-
-static FILE *log_f;
-
-static const char *log_prefix(void)
-{
-	static char pfx[512];
-	time_t now;
-	struct tm *tmp;
-	size_t sz;
-
-	now = time(NULL);
-	if (!(tmp = localtime(&now)))
-		sz = snprintf(pfx, 512, "[----/--/-- --:--:-- +----] ");
-	else
-		sz = strftime(pfx, 512, "[%Y/%m/%d %H:%M:%S %z] ", tmp);
-
-	return pfx;
-}
-
-static void log_open(const char *filename)
-{
-	if (!filename)
-		return;
-
-	log_f = fopen(filename, "a");
-
-	if (!log_f) {
-		fprintf(stderr, "Could not open log file %s\n", filename);
-		return;
-	}
-
-	fprintf(log_f, "%spcfpd started\n", log_prefix());
-	fflush(log_f);
-}
-
-static void log_client(struct sockaddr_in *sa)
-{
-	char buf[256];
-
-	if (!log_f)
-		return;
-
-	inet_ntop(AF_INET, &sa->sin_addr, buf, 256);
-
-	fprintf(log_f, "%s%s\n", log_prefix(), buf);
-	fflush(log_f);
-}
-
-static void log_errno(const char *msg, int e)
-{
-	fprintf(log_f, "%s%s: %s", log_prefix(), msg, strerror(e));
-	fflush(log_f);
 }
 
 static void usage(const char *argv0)
