@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <errno.h>
 
 #define DEFAULT_PORT 843
 #define MAX_POLICY_LEN 65536
@@ -160,6 +161,12 @@ static void log_client(struct sockaddr_in *sa)
 	fflush(log_f);
 }
 
+static void log_errno(const char *msg, int e)
+{
+	fprintf(log_f, "%s%s: %s", log_prefix(), msg, strerror(e));
+	fflush(log_f);
+}
+
 static void usage(const char *argv0)
 {
 	fprintf(stderr, "\nUsage: %s [OPTIONS] -f POLICY\n", argv0);
@@ -250,7 +257,10 @@ int main(int argc, char *argv[])
 		int client;
 		client = accept(listener, (struct sockaddr*)&sa, &salen);
 		if (client < 0) {
-			perror("accept");
+			int e = errno;
+			log_errno("accept", e);
+			if (e == EINTR || e == EAGAIN)
+				continue;
 			break;
 		}
 		log_client(&sa);
