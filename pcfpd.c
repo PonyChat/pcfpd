@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <time.h>
 
 #define DEFAULT_PORT 843
 #define MAX_POLICY_LEN 65536
@@ -110,9 +111,58 @@ static int create_listener(unsigned short port)
 	return listener;
 }
 
+/* TODO: fflush in exit handler */
+
+static FILE *log_f;
+
+static const char *log_prefix(void)
+{
+	static char pfx[512];
+	time_t now;
+	struct tm *tmp;
+	size_t sz;
+
+	now = time(NULL);
+	if (!(tmp = localtime(&now)))
+		sz = snprintf(pfx, 512, "[----/--/-- --:--:-- +----] ");
+	else
+		sz = strftime(pfx, 512, "[%Y/%m/%d %H:%M:%S %z] ", tmp);
+
+	return pfx;
+}
+
+static void log_open(const char *filename)
+{
+	if (!filename)
+		return;
+
+	log_f = fopen(filename, "a");
+
+	if (!log_f) {
+		fprintf(stderr, "Could not open log file %s\n", filename);
+		return;
+	}
+
+	fprintf(log_f, "%spcfpd started\n", log_prefix());
+	fflush(log_f);
+}
+
+static void log_client(struct sockaddr_in *sa)
+{
+	char buf[256];
+
+	if (!log_f)
+		return;
+
+	inet_ntop(AF_INET, &sa->sin_addr, buf, 256);
+
+	fprintf(log_f, "%s%s\n", log_prefix(), buf);
+	fflush(log_f);
+}
+
 static void usage(const char *argv0)
 {
-	fprintf(stderr, "Usage: %s -f POLICY [-p PORT] [-d]\n", argv0);
+	fprintf(stderr, "Usage: %s -f POLICY [-p PORT] [-d] [-l LOG]\n", argv0);
 	fprintf(stderr, "Default port is %d\n", DEFAULT_PORT);
 }
 
@@ -120,10 +170,11 @@ int main(int argc, char *argv[])
 {
 	int c, listener;
 	char *policy_file = NULL;
+	char *log_file = NULL;
 	unsigned short port = DEFAULT_PORT;
 	int do_fork = 0;
 
-	while ((c = getopt(argc, argv, "p:f:d")) != -1) switch (c) {
+	while ((c = getopt(argc, argv, "p:f:dl:")) != -1) switch (c) {
 	case 'p':
 		port = atoi(optarg);
 		if (port == 0) {
@@ -137,6 +188,11 @@ int main(int argc, char *argv[])
 			free(policy_file);
 		policy_file = strdup(optarg);
 		break;
+
+	case 'l':
+		if (log_file)
+			free(log_file);
+		log_file = strdup(optarg);
 
 	case 'd':
 		do_fork = 1;
@@ -162,6 +218,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	log_open(log_file);
+
 	if (do_fork) {
 		pid_t pid = fork();
 
@@ -181,11 +239,15 @@ int main(int argc, char *argv[])
 	}
 
 	for (;;) {
-		int client = accept(listener, NULL, NULL);
+		struct sockaddr_in sa;
+		socklen_t salen;
+		int client;
+		client = accept(listener, (struct sockaddr*)&sa, &salen);
 		if (client < 0) {
 			perror("accept");
 			break;
 		}
+		log_client(&sa);
 		send_policy(client);
 		close(client);
 	}
