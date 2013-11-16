@@ -30,6 +30,7 @@
 #include <time.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <signal.h>
 
 #define DEFAULT_PORT 843
 #define MAX_POLICY_LEN 65536
@@ -185,6 +186,35 @@ static int create_listener(unsigned short port)
 	return listener;
 }
 
+static int running;
+
+static void sigint_handler(int sig)
+{
+	log_line("caught SIGINT. stopping...");
+	running = 0;
+}
+
+static void sighup_handler(int sig)
+{
+	log_line("caught SIGHUP. ignoring...");
+}
+
+static void sigterm_handler(int sig)
+{
+	log_line("caught SIGTERM. stopping...");
+	running = 0;
+}
+
+static void sig_handler(int sig, void (*fn)(int))
+{
+	struct sigaction act;
+
+	sigaction(sig, NULL, &act);
+	act.sa_handler = fn;
+	act.sa_flags &= ~SA_RESTART;
+	sigaction(sig, &act, NULL);
+}
+
 static void usage(const char *argv0)
 {
 	fprintf(stderr, "\nUsage: %s [OPTIONS] -f POLICY\n", argv0);
@@ -233,6 +263,13 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	log_open(log_file);
+
+	sig_handler(SIGINT, sigint_handler);
+	sig_handler(SIGHUP, sighup_handler);
+	sig_handler(SIGTERM, sigterm_handler);
+	sig_handler(SIGPIPE, SIG_IGN);
+
 	if (!policy_file) {
 		fprintf(stderr, "Missing required policy file argument -f\n");
 		usage(argv[0]);
@@ -248,8 +285,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Failed to create listener\n");
 		return 1;
 	}
-
-	log_open(log_file);
 
 	if (do_fork) {
 		pid_t pid = fork();
@@ -269,7 +304,7 @@ int main(int argc, char *argv[])
 		close(2);
 	}
 
-	for (;;) {
+	for (running = 1; running; ) {
 		struct sockaddr_in sa;
 		socklen_t salen;
 		int client;
