@@ -331,7 +331,10 @@ int main(int argc, char *argv[])
 			break;
 		}
 		log_client(&sa);
-		send_policy(client);
+		if (fork() == 0) {
+			send_policy(client);
+			exit(0);
+		}
 		close(client);
 	}
 
