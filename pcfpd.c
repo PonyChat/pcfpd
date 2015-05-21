@@ -215,6 +215,11 @@ static void sigterm_handler(int sig)
 	running = 0;
 }
 
+static void sigchld_handler(int sig)
+{
+	wait(NULL);
+}
+
 static void sig_handler(int sig, void (*fn)(int))
 {
 	struct sigaction act;
@@ -280,6 +285,7 @@ int main(int argc, char *argv[])
 	sig_handler(SIGHUP, sighup_handler);
 	sig_handler(SIGTERM, sigterm_handler);
 	sig_handler(SIGPIPE, SIG_IGN);
+	sig_handler(SIGCHLD, sigchld_handler);
 
 	if (!policy_file) {
 		fprintf(stderr, "Missing required policy file argument -f\n");
@@ -325,9 +331,11 @@ int main(int argc, char *argv[])
 		client = accept(listener, (struct sockaddr*)&sa, &salen);
 		if (client < 0) {
 			int e = errno;
-			log_errno("accept", e);
-			if (e == EINTR || e == EAGAIN)
+			if (e == EINTR || e == EAGAIN) {
 				continue;
+			} else {
+				log_errno("accept", e);
+			}
 			break;
 		}
 		log_client(&sa);
